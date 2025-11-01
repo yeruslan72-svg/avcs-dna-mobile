@@ -7,7 +7,7 @@ import time
 
 # --- PWA CONFIGURATION ---
 st.set_page_config(
-    page_title="AVCS DNA Mobile",
+    page_title="AVCS DNA Mobile", 
     page_icon="🏭",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -35,6 +35,7 @@ mobile_css = """
     .mobile-warning {background-color: #ffaa00; color: white; padding: 15px; border-radius: 10px; margin: 10px 0;}
     .mobile-good {background-color: #00C851; color: white; padding: 15px; border-radius: 10px; margin: 10px 0;}
     .animation-container {border: 2px solid #0A5FBC; border-radius: 10px; padding: 10px; margin: 10px 0;}
+    .smooth-chart {transition: all 0.3s ease-in-out;}
     @media (max-width: 768px) {
         .element-container {padding: 0px !important;}
         .stAlert {margin: 5px 0 !important;}
@@ -46,17 +47,17 @@ mobile_css = """
 st.markdown(mobile_css, unsafe_allow_html=True)
 
 # --- ИНИЦИАЛИЗАЦИЯ СЕССИИ ---
-if 'animation_data' not in st.session_state:
-    st.session_state.animation_data = {
-        'time_points': [],
-        'vibration_data': [],
-        'temperature_data': [],
+if 'smooth_data' not in st.session_state:
+    st.session_state.smooth_data = {
+        'time_points': list(range(20)),  # Фиксированные 20 точек времени
+        'vibration_data': [2.0] * 20,   # Начальные данные
+        'temperature_data': [65.0] * 20,
         'is_running': False,
-        'current_step': 0
+        'current_index': 0
     }
 
-# --- МОБИЛЬНАЯ АНИМАЦИЯ ---
-def smooth_animation():
+# --- ГЛАДКАЯ АНИМАЦИЯ С ПРЕДСКАЗУЕМЫМ ОБНОВЛЕНИЕМ ---
+def create_smooth_chart():
     st.markdown("### 🎥 Live Equipment Monitoring")
     
     # Управление анимацией
@@ -64,22 +65,22 @@ def smooth_animation():
     
     with col1:
         if st.button("▶️ Start", use_container_width=True, type="primary"):
-            st.session_state.animation_data['is_running'] = True
+            st.session_state.smooth_data['is_running'] = True
             st.rerun()
     
     with col2:
         if st.button("⏸️ Pause", use_container_width=True):
-            st.session_state.animation_data['is_running'] = False
+            st.session_state.smooth_data['is_running'] = False
             st.rerun()
     
     with col3:
         if st.button("🔄 Reset", use_container_width=True):
-            st.session_state.animation_data = {
-                'time_points': [],
-                'vibration_data': [], 
-                'temperature_data': [],
+            st.session_state.smooth_data = {
+                'time_points': list(range(20)),
+                'vibration_data': [2.0] * 20,
+                'temperature_data': [65.0] * 20,
                 'is_running': False,
-                'current_step': 0
+                'current_index': 0
             }
             st.rerun()
     
@@ -88,145 +89,158 @@ def smooth_animation():
                            options=["Very Slow", "Slow", "Normal", "Fast", "Very Fast"],
                            value="Normal")
     
-    speed_map = {"Very Slow": 2.0, "Slow": 1.5, "Normal": 1.0, "Fast": 0.5, "Very Fast": 0.2}
+    speed_map = {"Very Slow": 1.0, "Slow": 0.7, "Normal": 0.4, "Fast": 0.2, "Very Fast": 0.1}
     
-    # Контейнер для анимации
-    animation_placeholder = st.empty()
+    # Основной контейнер для анимации
+    chart_placeholder = st.empty()
+    metrics_placeholder = st.empty()
+    progress_placeholder = st.empty()
     
-    # Запуск анимации
-    if st.session_state.animation_data['is_running']:
-        max_steps = 50
+    # Запуск плавной анимации
+    if st.session_state.smooth_data['is_running']:
+        max_steps = 100
         
-        for step in range(st.session_state.animation_data['current_step'], max_steps):
-            if not st.session_state.animation_data['is_running']:
+        for step in range(st.session_state.smooth_data['current_index'], max_steps):
+            if not st.session_state.smooth_data['is_running']:
+                st.session_state.smooth_data['current_index'] = step
                 break
-                
-            # Обновляем данные
-            current_time = step
-            vibration = 2.0 + (step * 0.15) + np.random.normal(0, 0.1)
-            temperature = 65 + (step * 0.8) + np.random.normal(0, 1)
             
-            # Сохраняем историю (последние 20 точек)
-            st.session_state.animation_data['time_points'].append(current_time)
-            st.session_state.animation_data['vibration_data'].append(vibration)
-            st.session_state.animation_data['temperature_data'].append(temperature)
+            # ПЛАВНОЕ ОБНОВЛЕНИЕ ДАННЫХ - сдвигаем массив
+            current_vibration = 2.0 + (step * 0.1) + np.sin(step * 0.3) * 0.5 + np.random.normal(0, 0.05)
+            current_temperature = 65 + (step * 0.5) + np.cos(step * 0.2) * 2 + np.random.normal(0, 0.3)
             
-            # Ограничиваем историю для производительности
-            if len(st.session_state.animation_data['time_points']) > 20:
-                st.session_state.animation_data['time_points'] = st.session_state.animation_data['time_points'][-20:]
-                st.session_state.animation_data['vibration_data'] = st.session_state.animation_data['vibration_data'][-20:]
-                st.session_state.animation_data['temperature_data'] = st.session_state.animation_data['temperature_data'][-20:]
+            # Сдвигаем массивы для плавного движения
+            st.session_state.smooth_data['vibration_data'] = st.session_state.smooth_data['vibration_data'][1:] + [current_vibration]
+            st.session_state.smooth_data['temperature_data'] = st.session_state.smooth_data['temperature_data'][1:] + [current_temperature]
             
-            st.session_state.animation_data['current_step'] = step
+            st.session_state.smooth_data['current_index'] = step
             
-            # Отрисовываем кадр анимации
-            with animation_placeholder.container():
-                st.markdown('<div class="animation-container">', unsafe_allow_html=True)
-                
-                # Текущие показатели
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("📊 Vibration", f"{vibration:.2f} mm/s", 
-                             delta="↑ Critical" if vibration > 4.0 else "↑ Warning" if vibration > 3.0 else "✓ Normal")
-                with col2:
-                    st.metric("🌡️ Temperature", f"{temperature:.1f}°C",
-                             delta="↑ High" if temperature > 80 else "✓ Normal")
-                
-                # График вибрации
+            # ОБНОВЛЯЕМ ТОЛЬКО ГРАФИКИ - без перерисовки всего интерфейса
+            with chart_placeholder.container():
+                # График вибрации с плавными линиями
                 fig_vib = go.Figure()
+                
                 fig_vib.add_trace(go.Scatter(
-                    x=st.session_state.animation_data['time_points'],
-                    y=st.session_state.animation_data['vibration_data'],
-                    mode='lines+markers',
+                    x=st.session_state.smooth_data['time_points'],
+                    y=st.session_state.smooth_data['vibration_data'],
+                    mode='lines',
                     name='Vibration',
-                    line=dict(color='#0A5FBC', width=4),
-                    marker=dict(size=8)
+                    line=dict(color='#0A5FBC', width=4, shape='spline'),
+                    fill='tozeroy',
+                    fillcolor='rgba(10, 95, 188, 0.1)'
                 ))
                 
-                fig_vib.add_hline(y=3.0, line_dash="dash", line_color="orange", annotation_text="Warning")
-                fig_vib.add_hline(y=4.0, line_dash="dash", line_color="red", annotation_text="Critical")
+                # Добавляем плавные пороговые линии
+                fig_vib.add_hline(y=3.0, line_dash="dash", line_color="orange", 
+                                annotation_text="Warning", annotation_position="right")
+                fig_vib.add_hline(y=4.0, line_dash="dash", line_color="red", 
+                                annotation_text="Critical", annotation_position="right")
                 
                 fig_vib.update_layout(
-                    height=250,
-                    margin=dict(l=0, r=0, t=30, b=0),
-                    title="Real-time Vibration Monitoring",
-                    showlegend=False
+                    height=280,
+                    margin=dict(l=0, r=0, t=40, b=0),
+                    title=dict(
+                        text="Real-time Vibration Monitoring",
+                        x=0.5,
+                        font=dict(size=16)
+                    ),
+                    xaxis_title="Time (seconds)",
+                    yaxis_title="Vibration (mm/s)",
+                    showlegend=False,
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
                 )
                 
                 st.plotly_chart(fig_vib, use_container_width=True, config={'displayModeBar': False})
-                
-                # Прогресс симуляции
-                progress = step / max_steps
-                st.progress(progress, text=f"Simulation Progress: {step}/{max_steps}")
-                
-                st.markdown('</div>', unsafe_allow_html=True)
             
-            # Пауза между кадрами
+            # ОБНОВЛЯЕМ МЕТРИКИ ОТДЕЛЬНО
+            with metrics_placeholder.container():
+                col1, col2 = st.columns(2)
+                with col1:
+                    vib_status = "🔴 CRITICAL" if current_vibration > 4.0 else "🟡 WARNING" if current_vibration > 3.0 else "🟢 NORMAL"
+                    st.metric("📊 Vibration", f"{current_vibration:.2f} mm/s", vib_status)
+                with col2:
+                    temp_status = "🔴 HIGH" if current_temperature > 80 else "🟢 NORMAL"
+                    st.metric("🌡️ Temperature", f"{current_temperature:.1f}°C", temp_status)
+            
+            # ОБНОВЛЯЕМ ПРОГРЕСС БАР
+            with progress_placeholder.container():
+                progress = step / max_steps
+                st.progress(progress, text=f"Simulation: {step}/{max_steps} steps")
+            
+            # Плавная пауза между кадрами
             time.sleep(speed_map[speed])
         
-        # Автоматическая остановка в конце
+        # Автостоп в конце
         if step >= max_steps - 1:
-            st.session_state.animation_data['is_running'] = False
-            st.success("✅ Simulation completed!")
+            st.session_state.smooth_data['is_running'] = False
+            st.session_state.smooth_data['current_index'] = 0
+            
     else:
-        # Статичное отображение когда анимация остановлена
-        with animation_placeholder.container():
-            if st.session_state.animation_data['time_points']:
-                st.markdown('<div class="animation-container">', unsafe_allow_html=True)
-                st.info("⏸️ Animation paused. Press Start to continue.")
+        # Статичное отображение при паузе
+        with chart_placeholder.container():
+            if st.session_state.smooth_data['current_index'] > 0:
+                # Показываем последний кадр анимации
+                fig_static = go.Figure()
+                fig_static.add_trace(go.Scatter(
+                    x=st.session_state.smooth_data['time_points'],
+                    y=st.session_state.smooth_data['vibration_data'],
+                    mode='lines',
+                    name='Vibration',
+                    line=dict(color='#0A5FBC', width=4, shape='spline'),
+                    fill='tozeroy',
+                    fillcolor='rgba(10, 95, 188, 0.1)'
+                ))
                 
-                # Показываем последние данные
-                if st.session_state.animation_data['vibration_data']:
-                    last_vib = st.session_state.animation_data['vibration_data'][-1]
-                    last_temp = st.session_state.animation_data['temperature_data'][-1]
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric("Last Vibration", f"{last_vib:.2f} mm/s")
-                    with col2:
-                        st.metric("Last Temperature", f"{last_temp:.1f}°C")
+                fig_static.add_hline(y=3.0, line_dash="dash", line_color="orange")
+                fig_static.add_hline(y=4.0, line_dash="dash", line_color="red")
                 
-                st.markdown('</div>', unsafe_allow_html=True)
+                fig_static.update_layout(
+                    height=280,
+                    margin=dict(l=0, r=0, t=40, b=0),
+                    title="Vibration Monitoring (Paused)",
+                    showlegend=False
+                )
+                
+                st.plotly_chart(fig_static, use_container_width=True, config={'displayModeBar': False})
             else:
-                st.info("🎬 Press Start to begin live monitoring simulation")
+                st.info("🎬 Press START to begin real-time monitoring")
 
 # --- ОСНОВНОЙ ИНТЕРФЕЙС ---
 def mobile_dashboard():
     st.title("🏭 AVCS DNA Mobile")
-    st.markdown("**Live Equipment Monitoring**")
+    st.markdown("**Real-time Equipment Monitoring**")
     
     # Статус система
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("📊 System Status", "ACTIVE", "92%")
+        st.metric("📊 System Status", "ACTIVE", "94%")
         st.metric("🚨 Active Alerts", "1")
     with col2:
-        st.metric("⏳ RUL", "45 days")
-        st.metric("🔧 Equipment", "8 units")
+        st.metric("⏳ RUL", "52 days")
+        st.metric("🔧 Equipment", "6 units")
     
-    # Запускаем анимацию
-    smooth_animation()
+    # Запускаем гладкую анимацию
+    create_smooth_chart()
     
     # Быстрые действия
     st.markdown("### 🎛 Quick Actions")
     action_col1, action_col2 = st.columns(2)
     
     with action_col1:
-        if st.button("📊 Generate Report", use_container_width=True):
-            st.success("📋 Equipment health report generated!")
+        if st.button("📊 Health Report", use_container_width=True):
+            st.success("📋 Comprehensive report generated!")
         if st.button("🔔 Test Alert", use_container_width=True):
-            st.toast("Test notification sent to all devices!", icon="📱")
+            st.toast("Test notification sent!", icon="📱")
     
     with action_col2:
-        if st.button("🔄 Refresh All", use_container_width=True):
+        if st.button("🔄 Refresh Data", use_container_width=True):
             st.rerun()
-        if st.button("🛑 Emergency Stop", use_container_width=True):
-            st.error("🚨 EMERGENCY STOP - All systems halting!")
+        if st.button("🛑 Emergency", use_container_width=True, type="secondary"):
+            st.error("🚨 EMERGENCY PROCEDURE ACTIVATED!")
     
-    # Footer
     st.markdown("---")
-    st.markdown("📱 **AVCS DNA Mobile v2.0** | Real-time animation demo")
+    st.markdown("📱 **AVCS DNA Mobile v2.1** | Smooth real-time animation")
 
-# Запуск приложения
 if __name__ == "__main__":
     mobile_dashboard()
