@@ -152,7 +152,7 @@ if not st.session_state.system_running:
             line=dict(color='#0A5FBC', width=3)
         ))
         fig_demo_vib.update_layout(height=250, showlegend=False, title="Demo: Vibration Trend")
-        st.plotly_chart(fig_demo_vib, use_container_width=True, key="demo_vib_chart")
+        st.plotly_chart(fig_demo_vib, use_container_width=True)
         
     with tab2:
         st.subheader("🤖 AI Risk Analysis")
@@ -172,7 +172,7 @@ if not st.session_state.system_running:
             }
         ))
         gauge_demo.update_layout(height=250)
-        st.plotly_chart(gauge_demo, use_container_width=True, key="demo_gauge")
+        st.plotly_chart(gauge_demo, use_container_width=True)
         
 else:
     # Progress and Status
@@ -276,7 +276,7 @@ else:
                         showlegend=True,
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                     )
-                    st.plotly_chart(fig_vib, use_container_width=True, key=f"vib_chart_{current_cycle}")
+                    st.plotly_chart(fig_vib, use_container_width=True)
             
             # Vibration Status
             with vib_status.container():
@@ -302,7 +302,7 @@ else:
                         showlegend=True,
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                     )
-                    st.plotly_chart(fig_temp, use_container_width=True, key=f"temp_chart_{current_cycle}")
+                    st.plotly_chart(fig_temp, use_container_width=True)
             
             # Temperature Status
             with temp_status.container():
@@ -334,18 +334,14 @@ else:
                     }
                 ))
                 gauge_fig.update_layout(height=200, margin=dict(l=0, r=0, t=0, b=0))
-                st.plotly_chart(gauge_fig, use_container_width=True, key=f"gauge_{current_cycle}")
+                st.plotly_chart(gauge_fig, use_container_width=True)
             
-            # AI Metrics - ИСПРАВЛЕНО: убраны ключи из st.metric
+            # AI Metrics
             with ai_metrics.container():
                 col1, col2 = st.columns(2)
                 with col1:
-                    # Используем уникальный контейнер для каждого metric
-                    metric_container = st.container()
-                    with metric_container:
-                        st.metric("🤖 AI Confidence", f"{ai_confidence:.3f}")
+                    st.metric("🤖 AI Confidence", f"{ai_confidence:.3f}")
                 with col2:
-                    # Используем уникальные сообщения для RUL
                     if rul_hours < 24:
                         st.error(f"⏳ RUL: {rul_hours}h")
                     elif rul_hours < 72:
@@ -366,35 +362,32 @@ else:
                     risk_fig.add_hline(y=50, line_dash="dash", line_color="orange")
                     risk_fig.add_hline(y=80, line_dash="dash", line_color="red")
                     risk_fig.update_layout(height=200, margin=dict(l=0, r=0, t=0, b=0), showlegend=False)
-                    st.plotly_chart(risk_fig, use_container_width=True, key=f"risk_chart_{current_cycle}")
+                    st.plotly_chart(risk_fig, use_container_width=True)
 
         # Tab 3: Dampers Control
         with tab3:
-            # Damper Status - ИСПРАВЛЕНО: используем контейнеры вместо ключей
+            # Damper Status
             with damper_status.container():
                 cols = st.columns(2)
                 damper_items = list(IndustrialConfig.MR_DAMPERS.items())
                 for i, (d, loc) in enumerate(damper_items):
                     with cols[i % 2]:
                         force = st.session_state.damper_forces[d]
-                        # Используем уникальные контейнеры для каждого демпфера
-                        damper_container = st.container()
-                        with damper_container:
-                            if force >= 4000:
-                                st.error(f"🔴 {loc}\n{force} N")
-                            elif force >= 1000:
-                                st.warning(f"🟡 {loc}\n{force} N")
-                            else:
-                                st.success(f"🟢 {loc}\n{force} N")
+                        if force >= 4000:
+                            st.error(f"🔴 {loc}\n{force} N")
+                        elif force >= 1000:
+                            st.warning(f"🟡 {loc}\n{force} N")
+                        else:
+                            st.success(f"🟢 {loc}\n{force} N")
             
-            # Damper Chart
+            # Damper Chart - ИСПРАВЛЕНО: убран параметр key
             with damper_chart.container():
                 if current_cycle > 0:
                     force_data = pd.DataFrame({
                         'Cycle': range(current_cycle + 1),
                         'Damper Force': [damper_force] * (current_cycle + 1)
                     })
-                    st.line_chart(force_data, x='Cycle', y='Damper Force', height=200, key=f"damper_chart_{current_cycle}")
+                    st.line_chart(force_data, x='Cycle', y='Damper Force', height=200)
 
         # Auto-advance to next cycle
         st.session_state.current_cycle += 1
