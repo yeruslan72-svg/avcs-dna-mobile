@@ -2,7 +2,6 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import time
-from sklearn.ensemble import IsolationForest
 import plotly.graph_objects as go
 
 # --- PAGE CONFIG FOR MOBILE ---
@@ -70,6 +69,41 @@ class IndustrialConfig:
     TEMPERATURE_LIMITS = {'normal': 70, 'warning': 85, 'critical': 100}
     DAMPER_FORCES = {'standby': 500, 'normal': 1000, 'warning': 4000, 'critical': 8000}
 
+# --- SIMPLE AI LOGIC (без scikit-learn) ---
+class SimpleAI:
+    @staticmethod
+    def calculate_risk(vibration_values, temperature_values):
+        """Упрощенная логика расчета риска"""
+        # Средняя вибрация
+        avg_vibration = np.mean(list(vibration_values.values()))
+        
+        # Средняя температура
+        avg_temperature = np.mean(list(temperature_values.values()))
+        
+        # Базовый риск от вибрации
+        if avg_vibration < 2.0:
+            vib_risk = 0
+        elif avg_vibration < 4.0:
+            vib_risk = (avg_vibration - 2.0) / 2.0 * 40  # 0-40%
+        else:
+            vib_risk = 40 + (avg_vibration - 4.0) / 2.0 * 60  # 40-100%
+        
+        # Базовый риск от температуры
+        if avg_temperature < 70:
+            temp_risk = 0
+        elif avg_temperature < 85:
+            temp_risk = (avg_temperature - 70) / 15 * 40  # 0-40%
+        else:
+            temp_risk = 40 + (avg_temperature - 85) / 15 * 60  # 40-100%
+        
+        # Комбинированный риск (взвешенный)
+        total_risk = min(100, int(vib_risk * 0.6 + temp_risk * 0.4))
+        
+        # AI Confidence (симуляция)
+        ai_confidence = max(0.1, 1.0 - (total_risk / 100) + np.random.normal(0, 0.1))
+        
+        return total_risk, ai_confidence
+
 # --- HEADER ---
 st.title("🏭 AVCS DNA Mobile")
 st.markdown("**AI-Powered Predictive Maintenance**")
@@ -85,12 +119,6 @@ if "damper_forces" not in st.session_state:
     st.session_state.damper_forces = {damper: 0 for damper in IndustrialConfig.MR_DAMPERS.keys()}
 if "risk_history" not in st.session_state:
     st.session_state.risk_history = []
-if "ai_model" not in st.session_state:
-    normal_vibration = np.random.normal(1.0, 0.3, (100, 4))
-    normal_temperature = np.random.normal(65, 5, (100, 4))
-    normal_data = np.column_stack([normal_vibration, normal_temperature])
-    st.session_state.ai_model = IsolationForest(contamination=0.1, random_state=42)
-    st.session_state.ai_model.fit(normal_data)
 
 # --- MOBILE CONTROL PANEL ---
 col1, col2 = st.columns(2)
@@ -176,11 +204,8 @@ else:
         st.session_state.vibration_data.loc[current_cycle] = vibration
         st.session_state.temperature_data.loc[current_cycle] = temperature
 
-        # AI Analysis
-        features = list(vibration.values()) + list(temperature.values())
-        ai_prediction = st.session_state.ai_model.predict([features])[0]
-        ai_conf = st.session_state.ai_model.decision_function([features])[0]
-        risk_index = min(100, max(0, int(abs(ai_conf) * 100)))
+        # AI Analysis (упрощенная версия)
+        risk_index, ai_confidence = SimpleAI.calculate_risk(vibration, temperature)
 
         # RUL Calculation
         rul_hours = max(0, int(100 - risk_index))
@@ -188,7 +213,7 @@ else:
         st.session_state.risk_history.append(risk_index)
 
         # Damper Control Logic
-        if ai_prediction == -1 or risk_index > 80:
+        if risk_index > 80:
             damper_force = IndustrialConfig.DAMPER_FORCES['critical']
             system_status = "🚨 CRITICAL"
             status_color = "red"
@@ -278,7 +303,7 @@ else:
                 st.plotly_chart(gauge_fig, use_container_width=True, config={'displayModeBar': False})
             
             with ai_metrics.container():
-                st.metric("🤖 AI Confidence", f"{abs(ai_conf):.3f}")
+                st.metric("🤖 AI Confidence", f"{ai_confidence:.3f}")
                 if rul_hours < 24:
                     st.error(f"⏳ RUL: {rul_hours}h")
                 elif rul_hours < 72:
