@@ -336,18 +336,22 @@ else:
                 gauge_fig.update_layout(height=200, margin=dict(l=0, r=0, t=0, b=0))
                 st.plotly_chart(gauge_fig, use_container_width=True, key=f"gauge_{current_cycle}")
             
-            # AI Metrics
+            # AI Metrics - ИСПРАВЛЕНО: убраны ключи из st.metric
             with ai_metrics.container():
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.metric("🤖 AI Confidence", f"{ai_confidence:.3f}", key=f"ai_conf_{current_cycle}")
+                    # Используем уникальный контейнер для каждого metric
+                    metric_container = st.container()
+                    with metric_container:
+                        st.metric("🤖 AI Confidence", f"{ai_confidence:.3f}")
                 with col2:
+                    # Используем уникальные сообщения для RUL
                     if rul_hours < 24:
-                        st.error(f"⏳ RUL: {rul_hours}h", key=f"rul_{current_cycle}")
+                        st.error(f"⏳ RUL: {rul_hours}h")
                     elif rul_hours < 72:
-                        st.warning(f"⏳ RUL: {rul_hours}h", key=f"rul_{current_cycle}")
+                        st.warning(f"⏳ RUL: {rul_hours}h")
                     else:
-                        st.success(f"⏳ RUL: {rul_hours}h", key=f"rul_{current_cycle}")
+                        st.success(f"⏳ RUL: {rul_hours}h")
             
             # Risk History Chart
             with risk_chart.container():
@@ -366,19 +370,22 @@ else:
 
         # Tab 3: Dampers Control
         with tab3:
-            # Damper Status
+            # Damper Status - ИСПРАВЛЕНО: используем контейнеры вместо ключей
             with damper_status.container():
                 cols = st.columns(2)
                 damper_items = list(IndustrialConfig.MR_DAMPERS.items())
                 for i, (d, loc) in enumerate(damper_items):
                     with cols[i % 2]:
                         force = st.session_state.damper_forces[d]
-                        if force >= 4000:
-                            st.error(f"🔴 {loc}\n{force} N", key=f"damper_{d}_{current_cycle}")
-                        elif force >= 1000:
-                            st.warning(f"🟡 {loc}\n{force} N", key=f"damper_{d}_{current_cycle}")
-                        else:
-                            st.success(f"🟢 {loc}\n{force} N", key=f"damper_{d}_{current_cycle}")
+                        # Используем уникальные контейнеры для каждого демпфера
+                        damper_container = st.container()
+                        with damper_container:
+                            if force >= 4000:
+                                st.error(f"🔴 {loc}\n{force} N")
+                            elif force >= 1000:
+                                st.warning(f"🟡 {loc}\n{force} N")
+                            else:
+                                st.success(f"🟢 {loc}\n{force} N")
             
             # Damper Chart
             with damper_chart.container():
